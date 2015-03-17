@@ -166,6 +166,7 @@ abstract class Ardent extends Model {
      *
      * @see \Illuminate\Database\Eloquent\Model::hasOne
      * @see \Illuminate\Database\Eloquent\Model::hasMany
+	 * @see \Illuminate\Database\Eloquent\Model::hasManyThrough
      * @see \Illuminate\Database\Eloquent\Model::belongsTo
      * @see \Illuminate\Database\Eloquent\Model::belongsToMany
      * @see \Illuminate\Database\Eloquent\Model::morphTo
@@ -180,6 +181,7 @@ abstract class Ardent extends Model {
 
     const HAS_MANY = 'hasMany';
 
+	const HAS_MANY_THROUGH = 'hasManyThrough';
     const BELONGS_TO = 'belongsTo';
 
     const BELONGS_TO_MANY = 'belongsToMany';
@@ -196,7 +198,7 @@ abstract class Ardent extends Model {
      * @var array
      */
     protected static $relationTypes = array(
-        self::HAS_ONE, self::HAS_MANY,
+        self::HAS_ONE, self::HAS_MANY, self::HAS_MANY_THROUGH,
         self::BELONGS_TO, self::BELONGS_TO_MANY,
         self::MORPH_TO, self::MORPH_ONE, self::MORPH_MANY
     );
@@ -294,6 +296,14 @@ abstract class Ardent extends Model {
             throw new \InvalidArgumentException($errorHeader.
             ' is a morphTo relation and should not contain additional arguments.');
         }
+		if (isset($relation[2]) && $relationType != self::HAS_MANY_THROUGH) {
+            throw new \InvalidArgumentException($errorHeader.
+            ' is not a hasManyThrough relation and should not contain additional arguments.');
+        }
+        if (!isset($relation[2]) && $relationType == self::HAS_MANY_THROUGH) {
+            throw new \InvalidArgumentException($errorHeader.
+            ' is a hasManyThrough relation and should have atleast three parameters: relation type, related model classname and through model classname.');
+        }
 
         $verifyArgs = function (array $opt, array $req = array()) use ($relationName, &$relation, $errorHeader) {
             $missing = array('req' => array(), 'opt' => array());
@@ -323,6 +333,9 @@ abstract class Ardent extends Model {
             case self::BELONGS_TO:
                 $verifyArgs(array('foreignKey'));
                 return $this->$relationType($relation[1], $relation['foreignKey']);
+			case self::HAS_MANY_THROUGH:
+                $verifyArgs(array('firstKey', 'secondKey'));
+                return $this->$relationType($relation[1], $relation[2], $relation['firstKey'], $relation['secondKey']);
 
             case self::BELONGS_TO_MANY:
                 $verifyArgs(array('table', 'foreignKey', 'otherKey'));
